@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
@@ -18,6 +19,7 @@ import androidx.compose.ui.unit.sp
 import com.example.parkingapp.ui.theme.ParkingAppTheme
 
 class MainActivity : ComponentActivity() {
+    private val viewModel: ParkingViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,121 +27,104 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             ParkingAppTheme {
-                ParkingAppScreen()
+                ParkingAppScreen(viewModel)
             }
         }
     }
 }
 
 @Composable
-fun ParkingAppScreen() {
-    val spots = remember { mutableStateListOf<ParkingSpot>() }
+fun ParkingAppScreen(viewModel: ParkingViewModel) {
+    var selectedLot by remember { mutableStateOf<Long>(1) }
+    val spots by viewModel.spots.collectAsState()
+    val lots by viewModel.lots.collectAsState()
+    val error by viewModel.error.collectAsState()
 
-    LaunchedEffect(Unit) {
-        if (spots.isEmpty()) {
-            spots.addAll(listOf(
-                ParkingSpot(1, "Spot 1", false, 1),
-                ParkingSpot(2, "Spot 2", true, 1),
-                ParkingSpot(3, "Spot 3", false, 1),
-                ParkingSpot(4, "Spot 4", true, 1),
-                ParkingSpot(5, "Spot 5", false, 1),
-                ParkingSpot(6, "Spot 6", true, 1),
-                ParkingSpot(7, "Spot 7", false, 1),
-                ParkingSpot(8, "Spot 8", true, 1),
-                ParkingSpot(9, "Spot 9", false, 1),
-                ParkingSpot(10, "Spot 10", true, 1),
-                ParkingSpot(11, "Spot 11", false, 1),
-                ParkingSpot(12, "Spot 12", true, 1),
-                ParkingSpot(13, "Spot 13", false, 1),
-                ParkingSpot(14, "Spot 14", true, 1),
-                ParkingSpot(15, "Spot 15", false, 1),
-                ParkingSpot(16, "Spot 16", true, 1),
-                ParkingSpot(17, "Spot 17", false, 1),
-                ParkingSpot(18, "Spot 18", true, 1),
-                ParkingSpot(19, "Spot 19", false, 1),
-                ParkingSpot(20, "Spot 20", true, 1),
-                ParkingSpot(21, "Spot 21", false, 1),
-                ParkingSpot(22, "Spot 22", true, 1),
-                ParkingSpot(23, "Spot 23", false, 1),
-                ParkingSpot(24, "Spot 24", true, 1),
-                ParkingSpot(25, "Spot 25", false, 2),
-                ParkingSpot(26, "Spot 26", true, 2),
-                ParkingSpot(27, "Spot 27", false, 2),
-                ParkingSpot(28, "Spot 28", true, 2),
-                ParkingSpot(29, "Spot 29", false, 2),
-                ParkingSpot(30, "Spot 30", true, 2),
-                ParkingSpot(31, "Spot 31", false, 2),
-                ParkingSpot(32, "Spot 32", true, 2),
-                ParkingSpot(33, "Spot 33", false, 2),
-                ParkingSpot(34, "Spot 34", true, 2),
-                ParkingSpot(35, "Spot 35", false, 2),
-                ParkingSpot(36, "Spot 36", true, 2)
-            ))
-        }
-    }
-
-    var selectedFloor by remember { mutableStateOf(1) }
-    val spotStatus = remember { mutableStateMapOf<Long, Boolean>() }
-
-    LaunchedEffect(Unit) {
-        spots.forEach { spot ->
-            spotStatus[spot.id] = spot.isOccupied
-        }
+    LaunchedEffect(selectedLot) {
+        viewModel.loadSpotsByLot(selectedLot)
     }
 
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
-            // Row of buttons for selecting the floor
-            Row(
+        if (error != null) {
+            // Show error state
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                verticalArrangement = Arrangement.Center
             ) {
-                Button(
-                    onClick = { selectedFloor = 1 },
-                    modifier = Modifier.width(120.dp)
-                ) {
-                    Text(text = "Floor 1")
-                }
-                Button(
-                    onClick = { selectedFloor = 2 },
-                    modifier = Modifier.width(120.dp)
-                ) {
-                    Text(text = "Floor 2")
+                Text(
+                    text = "Error: $error",
+                    color = Color.Red,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                Button(onClick = { viewModel.retryLoading() }) {
+                    Text("Retry")
                 }
             }
-
-            val filteredSpots = spots.filter { it.floor.toInt() == selectedFloor }
-
-            LazyVerticalStaggeredGrid(
-                columns = StaggeredGridCells.Fixed(2),
-                modifier = Modifier.fillMaxWidth().padding(8.dp),
-                contentPadding = PaddingValues(8.dp)
+        } else if (lots.isEmpty()) {
+            // Show loading state
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = androidx.compose.ui.Alignment.Center
             ) {
-                items(filteredSpots.size) { index ->
-                    val spot = filteredSpots[index]
-                    val isOccupied = spotStatus[spot.id] ?: false
-                    val backgroundColor = if (!isOccupied) Color.Green else Color.Red
+                CircularProgressIndicator()
+            }
+        } else {
+            Column(modifier = Modifier.padding(innerPadding)) {
+                // Rest of your existing UI code...
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    lots.forEach { lot ->
+                        Button(
+                            onClick = { selectedLot = lot.id },
+                            modifier = Modifier.width(120.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (selectedLot == lot.id)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.secondary
+                            )
+                        ) {
+                            Text(text = lot.name)
+                        }
+                    }
+                }
 
-                    Button(
-                        onClick = {
-                            spotStatus[spot.id] = !isOccupied
-                        },
-                        shape = RectangleShape,
-                        colors = ButtonDefaults.buttonColors(containerColor = backgroundColor),
-                        modifier = Modifier
-                            .width(150.dp)
-                            .height(80.dp)
-                            .padding(8.dp)
-                    ) {
-                        Text(
-                            text = "${spot.id}\n${if (isOccupied) "Reserved" else "Available"}",
-                            color = if (backgroundColor == Color.Green) Color.Black else Color.White,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(4.dp),
-                            style = androidx.compose.ui.text.TextStyle(fontSize = 12.sp)
-                        )
+                LazyVerticalStaggeredGrid(
+                    columns = StaggeredGridCells.Fixed(2),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    contentPadding = PaddingValues(8.dp)
+                ) {
+                    items(spots.size) { index ->
+                        val spot = spots[index]
+                        val backgroundColor = if (!spot.isOccupied) Color.Green else Color.Red
+
+                        Button(
+                            onClick = {
+                                viewModel.updateSpotStatus(spot.id, !spot.isOccupied)
+                            },
+                            shape = RectangleShape,
+                            colors = ButtonDefaults.buttonColors(containerColor = backgroundColor),
+                            modifier = Modifier
+                                .width(150.dp)
+                                .height(80.dp)
+                                .padding(8.dp)
+                        ) {
+                            Text(
+                                text = "Spot ${spot.spotNumber}\n${if (spot.isOccupied) "Reserved" else "Available"}",
+                                color = if (backgroundColor == Color.Green) Color.Black else Color.White,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(4.dp),
+                                style = androidx.compose.ui.text.TextStyle(fontSize = 12.sp)
+                            )
+                        }
                     }
                 }
             }
@@ -147,9 +132,25 @@ fun ParkingAppScreen() {
     }
 }
 
-data class ParkingSpot(
+data class ParkingLot(
     val id: Long,
     val name: String,
-    var isOccupied: Boolean,
-    var floor: Long
+    val location: String,
+    val capacity: Int,
+    val spots: List<String>
+)
+
+data class ParkingSpot(
+    val id: Long,
+    val spotNumber: String,
+    val isOccupied: Boolean,
+    val vehicle: String?,
+    val lot: String
+)
+
+data class Vehicle(
+    val id: Long,
+    val plate: String,
+    val type: String,
+    val spotId: Long
 )
