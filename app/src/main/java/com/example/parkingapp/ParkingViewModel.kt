@@ -1,6 +1,5 @@
 package com.example.parkingapp
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,30 +19,30 @@ class ParkingViewModel : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private var currentLotId: Long = 1
+
     init {
         loadInitialData()
     }
 
     private fun loadInitialData() {
         viewModelScope.launch {
-            try {
-                repository.getAllLots()
-                    .onSuccess { lotsList ->
-                        _lots.value = lotsList
-                        if (lotsList.isNotEmpty()) {
-                            loadSpotsByLot(lotsList.first().id)
-                        }
+            repository.getAllLots()
+                .onSuccess { lotsList ->
+                    _lots.value = lotsList
+                    if (lotsList.isNotEmpty()) {
+                        currentLotId = lotsList.first().id
+                        loadSpotsByLot(currentLotId)
                     }
-                    .onFailure { exception ->
-                        _error.value = "Failed to load lots: ${exception.message}"
-                    }
-            } catch (e: Exception) {
-                _error.value = "Network error: ${e.message}"
-            }
+                }
+                .onFailure { exception ->
+                    _error.value = "Failed to load lots: ${exception.message}"
+                }
         }
     }
 
     fun loadSpotsByLot(lotId: Long) {
+        currentLotId = lotId
         viewModelScope.launch {
             repository.getSpotsByLot(lotId)
                 .onSuccess { spotsList ->
@@ -55,19 +54,15 @@ class ParkingViewModel : ViewModel() {
         }
     }
 
-    fun updateSpotStatus(spotId: Long, isOccupied: Boolean) {
+    fun reserveSpot(spotId: Long) {
         viewModelScope.launch {
             repository.reserveSpot(spotId)
-                .onSuccess { updatedSpot ->
-                    val currentSpots = _spots.value.toMutableList()
-                    val index = currentSpots.indexOfFirst { it.id == spotId }
-                    if (index != -1) {
-                        currentSpots[index] = updatedSpot
-                        _spots.value = currentSpots
-                    }
+                .onSuccess { _ ->
+                    // Reload spots after successful reservation
+                    loadSpotsByLot(currentLotId)
                 }
                 .onFailure { exception ->
-                    _error.value = "Failed to update spot: ${exception.message}"
+                    _error.value = "Failed to reserve spot: ${exception.message}"
                 }
         }
     }

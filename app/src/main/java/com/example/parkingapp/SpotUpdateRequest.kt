@@ -1,5 +1,5 @@
 package com.example.parkingapp
 
 data class SpotUpdateRequest(
-    val isOccupied: Boolean
+    val isOccupied: Boolean = true
 )

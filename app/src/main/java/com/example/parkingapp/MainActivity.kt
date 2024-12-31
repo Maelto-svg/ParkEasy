@@ -6,6 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.material3.*
@@ -14,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.parkingapp.ui.theme.ParkingAppTheme
@@ -24,7 +27,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
         setContent {
             ParkingAppTheme {
                 ParkingAppScreen(viewModel)
@@ -46,7 +48,6 @@ fun ParkingAppScreen(viewModel: ParkingViewModel) {
 
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         if (error != null) {
-            // Show error state
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -63,7 +64,6 @@ fun ParkingAppScreen(viewModel: ParkingViewModel) {
                 }
             }
         } else if (lots.isEmpty()) {
-            // Show loading state
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = androidx.compose.ui.Alignment.Center
@@ -72,17 +72,18 @@ fun ParkingAppScreen(viewModel: ParkingViewModel) {
             }
         } else {
             Column(modifier = Modifier.padding(innerPadding)) {
-                // Rest of your existing UI code...
-                Row(
+                LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    lots.forEach { lot ->
+                    items(lots) { lot ->
                         Button(
                             onClick = { selectedLot = lot.id },
-                            modifier = Modifier.width(120.dp),
+                            modifier = Modifier
+                                .padding(horizontal = 4.dp)
+                                .width(120.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (selectedLot == lot.id)
                                     MaterialTheme.colorScheme.primary
@@ -104,11 +105,21 @@ fun ParkingAppScreen(viewModel: ParkingViewModel) {
                 ) {
                     items(spots.size) { index ->
                         val spot = spots[index]
-                        val backgroundColor = if (!spot.isOccupied) Color.Green else Color.Red
+                        val backgroundColor = when (spot.status) {
+                            SpotStatus.AVAILABLE -> Color.Green
+                            SpotStatus.RESERVED -> Color(0xFFFFD700)  // Golden Yellow
+                            SpotStatus.OCCUPIED -> Color.Red
+                        }
+                        val textColor = when (spot.status) {
+                            SpotStatus.AVAILABLE, SpotStatus.RESERVED -> Color.Black
+                            SpotStatus.OCCUPIED -> Color.White
+                        }
 
                         Button(
                             onClick = {
-                                viewModel.updateSpotStatus(spot.id, !spot.isOccupied)
+                                if (spot.status == SpotStatus.AVAILABLE) {
+                                    viewModel.reserveSpot(spot.id)
+                                }
                             },
                             shape = RectangleShape,
                             colors = ButtonDefaults.buttonColors(containerColor = backgroundColor),
@@ -118,11 +129,22 @@ fun ParkingAppScreen(viewModel: ParkingViewModel) {
                                 .padding(8.dp)
                         ) {
                             Text(
-                                text = "Spot ${spot.spotNumber}\n${if (spot.isOccupied) "Reserved" else "Available"}",
-                                color = if (backgroundColor == Color.Green) Color.Black else Color.White,
+                                text = buildString {
+                                    append("Spot ${spot.spotNumber}\n")
+                                    append(
+                                        when (spot.status) {
+                                            SpotStatus.AVAILABLE -> "Available"
+                                            SpotStatus.RESERVED -> "Reserved"
+                                            SpotStatus.OCCUPIED -> "Occupied"
+                                        }
+                                    )
+                                    spot.vehicle?.let { append("\n$it") }
+                                },
+                                color = textColor,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(4.dp),
-                                style = androidx.compose.ui.text.TextStyle(fontSize = 12.sp)
+                                style = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
@@ -131,26 +153,3 @@ fun ParkingAppScreen(viewModel: ParkingViewModel) {
         }
     }
 }
-
-data class ParkingLot(
-    val id: Long,
-    val name: String,
-    val location: String,
-    val capacity: Int,
-    val spots: List<String>
-)
-
-data class ParkingSpot(
-    val id: Long,
-    val spotNumber: String,
-    val isOccupied: Boolean,
-    val vehicle: String?,
-    val lot: String
-)
-
-data class Vehicle(
-    val id: Long,
-    val plate: String,
-    val type: String,
-    val spotId: Long
-)

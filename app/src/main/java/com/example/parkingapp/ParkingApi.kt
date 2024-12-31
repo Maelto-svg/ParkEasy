@@ -1,10 +1,7 @@
 package com.example.parkingapp
 
-import retrofit2.http.Body
-import retrofit2.http.GET
-import retrofit2.http.PUT
-import retrofit2.http.Path
 import retrofit2.Response
+import retrofit2.http.*
 
 interface ParkingApi {
     @GET("lots")
@@ -13,9 +10,6 @@ interface ParkingApi {
     @GET("{parkingLotId}/spots")
     suspend fun getSpotsByLot(@Path("parkingLotId") parkingLotId: Long): List<ParkingSpot>
 
-    @GET("{parkingLotId}/available-spots")
-    suspend fun getAvailableSpots(@Path("parkingLotId") parkingLotId: Long): List<ParkingSpot>
-
     @PUT("spots/{id}/reserve")
-    suspend fun reserveSpot(@Path("id") spotId: Long): ParkingSpot
+    suspend fun reserveSpot(@Path("id") spotId: Long): Response<Void>
 }
