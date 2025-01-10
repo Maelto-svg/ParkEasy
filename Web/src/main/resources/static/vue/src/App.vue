@@ -44,6 +44,17 @@
 import { ref, onMounted, computed } from 'vue'
 import axios from 'axios'
 
+// Configuration d'Axios avec l'authentification de base
+const api = axios.create({
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  auth: {
+    username: 'user',
+    password: 'password'
+  }
+})
+
 const lots = ref([])
 const selectedLotId = ref(null)
 const spots = ref([])
@@ -68,7 +79,7 @@ const getSpotStatus = (spot) => {
 
 const loadLots = async () => {
   try {
-    const response = await axios.get('/api/parking/lots')
+    const response = await api.get('/api/parking/lots')
     lots.value = response.data
     if (lots.value.length > 0) {
       selectedLotId.value = lots.value[0].id
@@ -83,7 +94,7 @@ const loadSpotsForLot = async () => {
   if (!selectedLotId.value) return
   
   try {
-    const response = await axios.get(`/api/parking/${selectedLotId.value}/spots`)
+    const response = await api.get(`/api/parking/${selectedLotId.value}/spots`)
     spots.value = response.data.map(spot => ({
       ...spot,
       isReserved: false
@@ -95,7 +106,7 @@ const loadSpotsForLot = async () => {
 
 const reserveSpot = async (spot) => {
   try {
-    const response = await axios.put(`/api/parking/spots/${spot.id}/reserve`)
+    const response = await api.put(`/api/parking/spots/${spot.id}/reserve`)
     if (response.status === 200) {
       spot.isReserved = true
     }
