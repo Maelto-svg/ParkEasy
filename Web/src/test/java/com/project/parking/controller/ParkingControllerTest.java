@@ -1,5 +1,6 @@
 package com.project.parking.controller;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -32,7 +33,9 @@ public class ParkingControllerTest {
         // Configuration du mock pour retourner une liste vide
         when(parkingService.getAllParkingLots()).thenReturn(Collections.emptyList());
 
-        mockMvc.perform(get("/api/parking/lots"))
+        // Effectuer une requête GET avec authentification
+        mockMvc.perform(get("/api/parking/lots")
+                        .with(user("username").password("password").roles("USER"))) // Simule un utilisateur connecté
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
 

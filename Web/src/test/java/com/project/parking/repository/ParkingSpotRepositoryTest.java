@@ -19,6 +19,7 @@ public class ParkingSpotRepositoryTest {
     @Test
     public void testFindByIsOccupied() {
         ParkingSpot spot = new ParkingSpot();
+        spot.setId(1L);
         spot.setSpotNumber("A1");
         spot.setOccupied(false);
         parkingSpotRepository.save(spot);
